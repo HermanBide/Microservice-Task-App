@@ -48,6 +48,17 @@ app.post("/users", async (req, res) => {
   }
 });
 
+//USER GET Method
+app.get("/users", async (req, res) => {
+  try {
+    const allUsers = await User.find()
+    res.status(200).json(allUsers)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json("Could not retrieve users", err)
+  }
+})
+
 
 app.get("/", (req, res) => {
   res.send("Hello World, Backend is working!");
