@@ -1,18 +1,26 @@
-version: '3.8'
+version: "3"
 services:
   user-service:
     build: ./user-service
-    container_name: user-serivce
+    container_name: user-service
     ports:
-      - "3000:3000"
-    env_file:
-      - .env
+      - "3001:3000"
+    environment:
+      - MONGO_URI=mongodb://root:example@mongodb:27017/users?authSource=admin
+    depends_on:
+      - mongodb
+
+  # task-service:
+  task-service:
+    build: ./task-service
+    container_name: task-service
+    ports:
+      - "3002:3000"
     environment:
       - MONGO_URI=mongodb://root:example@mongodb:27017/users?authSource=admin
     depends_on:
       - mongodb
   # task-service:
-
 
   mongodb:
     image: mongo
@@ -24,7 +32,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      -mongo_data:/data/db
+      - mongo_data:/data/db
 
 volumes:
-  mongo_data
+  mongo_data:

@@ -40,8 +40,7 @@ app.post("/users", async (req, res) => {
   try {
     const user = new User({ name, email });
     await user.save();
-    res.status(201).json(user);
-    console.log(`Successfully saved ${user} in DB`);
+    res.status(201).json("Created user",user);
   } catch (err) {
     console.error("Failed to save user name and email", err);
     res.status(500).json({ error: "Internal Server Error" });
