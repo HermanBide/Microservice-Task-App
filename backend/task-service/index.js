@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
+const amqp = require("amqplib");
 // const dotenv = require("dotenv")
 
 const app = express();
@@ -30,17 +31,51 @@ const taskSchema = new mongoose.Schema({
   desc: { type: String },
   priority: { type: String, enum: ["low", "medium", "high"] },
   dueDate: { type: Date },
+  userId: { type: String },
+  createdAt: { type: Date, default: Date.now },
 });
 const Task = mongoose.model("Task", taskSchema);
 
+//Connecting to rabbitMQ
+let channel, connection;
+
+async function connectRabbitMQWithRetry(retries = 5, delay = 1000) {
+  while (retries > 0) {
+    try {
+      connection = await amqp.connect("amqp://rabbitmq");
+      channel = await connection.createChannel();
+      await channel.assertQueue("Task_Created");
+      console.log("Connected to RabbitMQ", { durable: true });
+      return channel;
+    } catch (err) {
+      console.error("RabbitMQ connection failed:", err);
+      retries--;
+      console.error("RabbitMQ retrying again:", err);
+      await new Promise((res) => setTimeout(res, delay));
+      delay *= 2;
+    }
+  }
+  throw new Error("Could not connect to RabbitMQ after multiple attempts. ");
+}
+
 //Create new Task Method
 app.post("/task", async (req, res) => {
-  const { title, desc, priority, dueDate } = req.body;
+  const { title, desc, priority, dueDate, userId } = req.body;
 
   try {
-    const task = new Task({ title, desc, priority, dueDate });
+    const task = new Task({ title, desc, priority, dueDate, userId });
     const saveTask = await task.save();
-    res.status(201).json("Successfully saved task", saveTask);
+    const message = { taskId: task._id, userId, title };
+
+    if (!channel) {
+      return res.status(503).json();
+    }
+
+    channel.sendToQueue(
+      "Task_Created",
+      Buffer.from(JSON.stringify(message))
+    );
+    res.status(201).json({message: "Successfully saved task", task: saveTask});
   } catch (err) {
     console.error("Failed to create task", err);
     res.status(500).json({ message: err });
@@ -51,7 +86,7 @@ app.get("/tasks", async (req, res) => {
   try {
     const tasks = await Task.find();
     console.log("Successfully found all tasks");
-    res.status(200).json(tasks)
+    res.status(200).json(tasks);
   } catch (err) {
     console.error("Failed to retrieve", err);
     res.status(500).json({ message: err });
@@ -65,4 +100,5 @@ app.get("/", (req, res) => {
 
 app.listen(port, (req, res) => {
   console.log(`Backend is running on port: ${port}`);
+  connectRabbitMQWithRetry();
 });

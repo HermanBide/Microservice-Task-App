@@ -6,9 +6,16 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - MONGO_URI=mongodb://root:example@mongodb:27017/users?authSource=admin
+      - MONGO_URI=mongodb://root:example@mongo:27017/users?authSource=admin
     depends_on:
       - mongodb
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_node
+    ports: 
+      - "5672:5672"
+      - "15672:15672"
 
   # task-service:
   task-service:
@@ -17,10 +24,11 @@ services:
     ports:
       - "3002:3000"
     environment:
-      - MONGO_URI=mongodb://root:example@mongodb:27017/users?authSource=admin
+      - MONGO_URI=mongodb://root:example@mongo:27017/users?authSource=admin
     depends_on:
       - mongodb
-  # task-service:
+      - rabbitmq
+  
 
   mongodb:
     image: mongo
